@@ -1,0 +1,8 @@
+# Parameter file for downloading some free-swinging suspension data
+optic: MC2
+tStart: 27 Feb 2019 2130 PST
+tDur: 15000
+dsFactor: 32
+tFFT: 1024 # seconds
+ndsServer: 131.215.115.200
+ndsPort: 31200

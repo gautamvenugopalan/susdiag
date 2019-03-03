@@ -1,0 +1,23 @@
+# Collection of initial guesses for the eigen-frequencies of the 40m SOS optics.
+# Note that the widths are for a Lorentzian, which would describe the PSD, while the
+# fitting is done on an ASD.
+#
+#          POS      PIT     YAW      SIDE
+MC1:
+    f0:  [0.968,   0.68,   0.795,   0.995]   # POS, PIT, YAW, SIDE [Hz]
+    gam: [0.0001,  0.0002,  0.0003,  0.0003]  # Peak widths in Hz
+    A:   [10000,   10000,   10000,   10000]   # Peak heights [~microns]
+    df:  0.005                                # Range of frequencies (on either side) around initial guess to search for peaks [Hz]
+    Df:  0.05                                 # Range of frequencies (on either side) around found peak on which to fit Lorentzian [Hz]
+MC2:
+    f0:  [0.97,    0.75,    0.817,    0.99]   # POS, PIT, YAW, SIDE [Hz]
+    gam: [0.0001,  0.0002,  0.0003,  0.0003]  # Peak widths in Hz
+    A:   [10000,   10000,   10000,   10000]   # Peak heights [~microns]
+    df:  0.005                                # Range of frequencies (on either side) around initial guess to search for peaks [Hz]
+    Df:  0.05                                 # Range of frequencies (on either side) around found peak on which to fit Lorentzian [Hz]
+MC3:
+    f0:  [0.98,    0.774,   0.843,    0.971]  # POS, PIT, YAW, SIDE [Hz]
+    gam: [0.0001,  0.0002,  0.0003,  0.0003]  # Peak widths in Hz
+    A:   [10000,   10000,   10000,   10000]   # Peak heights [~microns]
+    df:  0.005                                # Range of frequencies (on either side) around initial guess to search for peaks [Hz]
+    Df:  0.05                                 # Range of frequencies (on either side) around found peak on which to fit Lorentzian [Hz]
