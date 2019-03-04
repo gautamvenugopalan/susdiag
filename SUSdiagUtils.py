@@ -13,6 +13,7 @@ import h5py
 import gpstime, re
 from scipy.optimize import curve_fit
 from matplotlib.ticker import FormatStrFormatter
+from matplotlib.font_manager import FontProperties
 import tabulate
 import sympy
 import logging 
@@ -304,6 +305,7 @@ def fitSpectra(paramFile, guessFile, fftParams, fig, ax, mtrx=np.array([[1,1,1,1
     # Get the initial guesses
     inits = importParams(guessFile)
     inits = inits[par['optic']]
+    tbl = []
     # Find the locations of the peaks
     for ii in range(len(Eul)-1):
         ax.semilogy(ff, Eul[ii,:], '.', label=DoFs[ii], rasterized=True)
@@ -336,6 +338,8 @@ def fitSpectra(paramFile, guessFile, fftParams, fig, ax, mtrx=np.array([[1,1,1,1
                 dat_ext = Eul[ii,int(peak_ind-100):int(peak_ind+100)]
                 #ax.semilogy(ff, Eul[ii,:], '.', label=DoFs[ii], rasterized=True)
                 ax.semilogy(ff_ext, lor(ff_ext, *popt), alpha=0.7, color=ax.lines[-1].get_color())
+                q = popt[0] / popt[1]
+                tbl.append([DoFs[ii], '{} +/- {}'.format(round(popt[0],4), roundTo1(np.sqrt(pcov[0,0]))),  '{}'.format(round(q,3)) ])
             except Exception as e:
                 logging.debug(e)
                 continue
@@ -355,13 +359,12 @@ def fitSpectra(paramFile, guessFile, fftParams, fig, ax, mtrx=np.array([[1,1,1,1
     ax.set_xlim([0.5,1.2])
     ax.set_ylim([1e-2, 200])
     fig.suptitle('Peak fitting using the naive input matrix for {}'.format(par['optic']))
+    # Add the table to the plot
+    plotTbl = ax.table(cellText=tbl, fontsize=14, colLabels=['DoF', '$f_0$','Q'], loc='upper left', colWidths=[0.05,0.1,0.05], rowLoc='center', colLoc='center')
+    for (row, col), cell in plotTbl.get_celld().items():
+        if (row == 0):
+            cell.set_text_props(fontproperties=FontProperties(weight='extra bold'))
     fig.savefig(figDir+par['optic']+'_pkFitNaive'+'.pdf', bbox_inches='tight')
-    # Print the results of the fit
-    try:
-        tabulateFit(fitDict)
-    except:
-        #print('WARNING: There were issues with the fitting - please investigate!')
-        logging.debug('WARNING: There were issues with the fitting - please investigate!')
     return(fitDict)      
 
 def cplxTF(paramFile, fftParams, fig, ax, mtrx=np.array([[1,1,1,1,0],[1,1,-1,-1,0],[1,-1,1,-1,0],[0,0,0,0,1]]), nullStream=False):
@@ -559,11 +562,6 @@ def tabulateFit(fitDictFile):
     '''
     Take output of fitSpectra and print a nice ASCII table
     '''
-    def roundTo1(xx):
-        '''
-        round to some number of significant digits
-        '''
-        return(round(xx, -int(np.floor(np.log10(abs(xx))))))
     fil = h5py.File(fitDictFile,'r')
     DoFs = ['POS','PIT','YAW','SIDE']
     tbl = []
@@ -574,3 +572,9 @@ def tabulateFit(fitDictFile):
     logging.info(tabulate.tabulate(tbl, headers=('DoF','Fitted frequency [Hz]','Q')))
     fil.close()
     return
+
+def roundTo1(xx):
+    '''
+    round to some number of significant digits
+    '''
+    return(round(xx, -int(np.floor(np.log10(abs(xx))))))
