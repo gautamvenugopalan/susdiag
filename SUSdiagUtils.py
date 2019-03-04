@@ -235,20 +235,11 @@ def OSEM2Eul(paramFile, mtrx, nullStream=False):
 
 def lor(freq, cent, wid, amp):
     '''
-    Computes the square-root of a lorentzian.
-    The peaks in the POWER spectral density is 
-    described by a lorentzian (Fourier transform 
-    of an exponentially damped oscillation), but
-    typically, we fit the AMPLITUDE spectral density
-    so sqrt(lorentzian) is the appropriate shape.
-    For finding peak position, this probably doesn't
-    make a huge difference, but physically, this is 
-    more accurate.
+    Computes a lorentzian.
     '''
     num = 0.5*wid
     den = (freq - cent)**2 + (0.5*wid)**2
-    return(np.sqrt(amp*num / den / np.pi))
-    #return(amp*num / den / np.pi)
+    return(amp*num / den / np.pi)
 
 
 def fitSpectra(paramFile, guessFile, fftParams, fig, ax, mtrx=np.array([[1,1,1,1,0],[1,1,-1,-1,0],[1,-1,1,-1,0],[0,0,0,0,1]]), nullStream=False):
@@ -326,7 +317,7 @@ def fitSpectra(paramFile, guessFile, fftParams, fig, ax, mtrx=np.array([[1,1,1,1
             dat_trunc = Eul[ii,int(peak_ind-nPts):int(peak_ind+nPts)]
             p0 = [inits['f0'][ii], inits['gam'][ii], inits['A'][ii]]
             try:
-                popt, pcov = curve_fit(lor, ff_trunc, dat_trunc, p0=p0, bounds=([0, 0, 0],[np.inf, 1, np.inf]), ftol=1e-3, maxfev=int(1e6))
+                popt, pcov = curve_fit(lor, ff_trunc, dat_trunc, p0=p0, bounds=([0, 0, 0],[np.inf, 0.05, np.inf]), ftol=1e-3, maxfev=int(1e6))
                 #popt, pcov = curve_fit(lor, ff_trunc, dat_trunc, p0=p0, ftol=1e-3, maxfev=int(1e6))
                 logging.debug('Fitted {}'.format(DoFs[ii]))
                 fitDict[DoFs[ii]]['pkLoc'] = peak_ind
