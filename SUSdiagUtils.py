@@ -144,7 +144,7 @@ def highResSpectra(paramFile):
     fil.close()
     return
 
-def plotSpectra(paramFile, fig, ax, zoom=True):
+def plotSpectra(paramFile, fig, ax, zoom=True, brMode=False, saveFig=True):
     '''
     Opens the HDF5 file containing the suspension spectra and plot it
     '''
@@ -162,9 +162,14 @@ def plotSpectra(paramFile, fig, ax, zoom=True):
     ax.xaxis.set_minor_formatter(FormatStrFormatter("%.1f"))
     fig.suptitle(par['optic']+' Sensor voltage spectra from {} for {} seconds'.format(par['tStart'], par['tDur']))
     if zoom:
-        ax.set_xlim([0.5,1.2])
-        ax.set_ylim([1e-2, 300])
-    fig.savefig(figDir+par['optic']+'_sensorSpectra.pdf', bbox_inches='tight')
+        if brMode:
+            ax.set_xlim([15,25])
+            ax.set_ylim([1e-4,1])
+        else:
+            ax.set_xlim([0.5,1.2])
+            ax.set_ylim([1e-2, 300])
+    if saveFig:
+        fig.savefig(figDir+par['optic']+'_sensorSpectra.pdf', bbox_inches='tight')
     return
 
 def plotTimeSeries(paramFile, fig, ax):
