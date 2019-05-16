@@ -62,7 +62,7 @@ def importParams(paramFile):
     Load in a set of parameters.
     '''
     with open(paramFile,'r') as f:
-        params = yaml.load(f)
+        params = yaml.safe_load(f)
     return(params)
 
 def dlData(paramFile):
