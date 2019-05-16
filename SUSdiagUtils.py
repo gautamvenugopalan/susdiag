@@ -4,7 +4,7 @@
 
 # Imports
 import numpy as np
-import matplotlib.pyplot as plt, matplotlib as mpl
+import matplotlib.pyplot as plt
 import scipy.signal as sig
 import nds2
 import timeit, tqdm, os, datetime
@@ -36,26 +36,26 @@ if globDataDir.strip('/') not in os.listdir():
     os.mkdir(globDataDir)
 
 # Matplotlib setup
-mpl.style.use('fivethirtyeight')
-mpl.rcParams['lines.linewidth'] = 3
-mpl.rcParams['font.size'] = 22
-mpl.rcParams['axes.titlesize']  = 'large'
-mpl.rcParams['axes.labelsize']  = 'large'
-mpl.rcParams['xtick.labelsize'] = 'large'
-mpl.rcParams['ytick.labelsize'] = 'large'
-mpl.rcParams['axes.formatter.limits'] = [-2,2]
-mpl.rcParams['axes.grid'] = True
-mpl.rcParams['grid.linestyle'] = '--'
-mpl.rcParams['grid.linewidth'] = 0.7
-mpl.rcParams['grid.alpha'] = 0.4
-mpl.rcParams['text.usetex'] = False
-mpl.rcParams['legend.loc'] = 'best'
-mpl.rcParams['legend.fontsize'] = 'small'
-mpl.rcParams['figure.figsize'] = [12,9]
-mpl.rcParams['figure.facecolor'] = 'white'
-mpl.rcParams['figure.subplot.left'] = 0.07
-mpl.rcParams['figure.subplot.right'] = 0.95
-mpl.rcParams['figure.subplot.top'] = 0.92
+plt.style.use('fivethirtyeight')
+plt.rcParams['lines.linewidth'] = 3
+plt.rcParams['font.size'] = 22
+plt.rcParams['axes.titlesize']  = 'large'
+plt.rcParams['axes.labelsize']  = 'large'
+plt.rcParams['xtick.labelsize'] = 'large'
+plt.rcParams['ytick.labelsize'] = 'large'
+plt.rcParams['axes.formatter.limits'] = [-2,2]
+plt.rcParams['axes.grid'] = True
+plt.rcParams['grid.linestyle'] = '--'
+plt.rcParams['grid.linewidth'] = 0.7
+plt.rcParams['grid.alpha'] = 0.4
+plt.rcParams['text.usetex'] = False
+plt.rcParams['legend.loc'] = 'best'
+plt.rcParams['legend.fontsize'] = 'small'
+plt.rcParams['figure.figsize'] = [12,9]
+plt.rcParams['figure.facecolor'] = 'white'
+plt.rcParams['figure.subplot.left'] = 0.07
+plt.rcParams['figure.subplot.right'] = 0.95
+plt.rcParams['figure.subplot.top'] = 0.92
 
 def importParams(paramFile):
     '''
