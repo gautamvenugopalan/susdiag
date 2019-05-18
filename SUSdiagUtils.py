@@ -363,7 +363,7 @@ def fitSpectra(paramFile, guessFile, fftParams, fig, ax, mtrx=np.array([[1,1,1,1
     fig.savefig(figDir+par['optic']+'_pkFitNaive'+'.pdf', bbox_inches='tight')
     return(fitDict)      
 
-def cplxTF(paramFile, fftParams, fig, ax, mtrx=np.array([[1,1,1,1,0],[1,1,-1,-1,0],[1,-1,1,-1,0],[0,0,0,0,1]]), nullStream=False):
+def cplxTF(paramFile, fftParams, fig, ax, fitDict, mtrx=np.array([[1,1,1,1,0],[1,1,-1,-1,0],[1,-1,1,-1,0],[0,0,0,0,1]]), nullStream=False):
     '''
     Function that evaluates the COMPLEX coil-to-coil transfer function matrices.
     
@@ -377,8 +377,10 @@ def cplxTF(paramFile, fftParams, fig, ax, mtrx=np.array([[1,1,1,1,0],[1,1,-1,-1,
         Matplotlib figure object on which to make the plot
     ax: matplotlib axis object
         Axis onto which to make the plot
+    fitDict: dictionary
+        Dictionary output of the fitSpectra function, used for zooming in the plots around the peaks.
     mtrx: array_like
-        Matrix with which to convert individual sensor streams to DoF basis
+        Matrix with which to convert individual sensor streams to DoF basis. Defaults to the "Naive" matrix
     nullStream: Bool
         Include Nullstream or not.
 
@@ -409,34 +411,42 @@ def cplxTF(paramFile, fftParams, fig, ax, mtrx=np.array([[1,1,1,1,0],[1,1,-1,-1,
             TF = np.vstack((TF, Pyx/Pxx))
     # Make the plot
     labs = ['UL-UL','UR-UL','LL-UL','LR-UL','SD-UL']
-    for ii in range(len(TF)):
-        ax[0].semilogy(ff, np.abs(TF[ii,:]), label=labs[ii], rasterized=True)
-        ax[1].plot(ff, np.angle(TF[ii,:], deg=True), alpha=0.7, linestyle='--', rasterized=True)
-    # Add the Peaks
     # DoFs
     DoFs = ['POS','PIT','YAW','SIDE']
+    for ii in range(len(TF)):
+        for plotInd in range(len(DoFs)):
+            ax[0, plotInd].semilogy(ff, np.abs(TF[ii,:]), label=labs[ii], rasterized=True)
+            ax[1, plotInd].plot(ff, np.angle(TF[ii,:], deg=True), alpha=0.7, linestyle='--', rasterized=True)
+    # Add the Peaks
     # Start by making the DoFs
     Eul_T, fs = OSEM2Eul(paramFile, mtrx, nullStream=nullStream)
     # Do the FFT
     nFFT = int(fftParams['tFFT'] * fs)
     for ii in range(len(Eul_T)):
-        ff, Pxx = sig.welch(Eul_T[ii,:], fs=fs, nperseg=nFFT, window=sig.get_window(fftParams['window'],nFFT))
-        ax[2].semilogy(ff, np.sqrt(Pxx), '.', label=DoFs[ii], rasterized=True)
-    #plotSpectra(paramFile, fig, ax[2], zoom=True)
-    ax[2].set_xlabel('Frequency [Hz]')
-    ax[1].set_ylim([-185,185])
-    ax[2].set_ylim([1e-1,200])
-    ax[1].set_yticks(np.linspace(-180,180,9))
-    ax[1].set_ylabel('Phase [deg]')
-    ax[0].set_ylabel('Magnitude [abs]')
-    ax[2].set_ylabel('ASD [cts/$\sqrt{\mathrm{Hz}}$]')
-    ax[0].legend(loc='best')
-    ax[1].set_xlim([0.5,1.02])
-    ax[1].yaxis.set_major_formatter(FormatStrFormatter("%2d"))
-    ax[2].xaxis.set_major_formatter(FormatStrFormatter("%.2f"))
-    ax[2].xaxis.set_minor_formatter(FormatStrFormatter("%.2f"))
-    for aa in ax:
-        aa.grid(True,which='both')
+        for plotInd in range(len(DoFs)):
+            ff, Pxx = sig.welch(Eul_T[ii,:], fs=fs, nperseg=nFFT, window=sig.get_window(fftParams['window'],nFFT))
+            #ax[2, plotInd].semilogy(ff, np.sqrt(Pxx), '.', label=DoFs[ii], rasterized=True)
+            ax[2, plotInd].semilogy(ff, np.sqrt(Pxx), label=DoFs[ii], rasterized=True)
+    ax[1,0].set_ylim([-185,185])
+    ax[2,0].set_ylim([1e-1,200])
+    ax[1,0].set_yticks(np.linspace(-180,180,9))
+    ax[1,0].set_ylabel('Phase [deg]')
+    ax[0,0].set_ylabel('Magnitude [abs]')
+    ax[2,0].set_ylabel('ASD [cts/$\sqrt{\mathrm{Hz}}$]')
+    ax[0,0].legend(loc='best')
+    ax[1,0].yaxis.set_major_formatter(FormatStrFormatter("%2d"))
+    ax[2,0].xaxis.set_major_formatter(FormatStrFormatter("%.2f"))
+    ax[2,0].xaxis.set_minor_formatter(FormatStrFormatter("%.2f"))
+    for bb in ax:
+        for aa in bb:
+            aa.grid(True,which='both')
+    for plotInd in range(len(DoFs)):
+        pkCenter = fitDict[DoFs[plotInd]]['pkFreq']
+        ax[2, plotInd].set_xlim([pkCenter-0.01, pkCenter+0.01])
+        ax[0, plotInd].vlines(pkCenter, 0.1,10, linewidth=0.5, color='xkcd:electric pink')
+        ax[1, plotInd].vlines(pkCenter, -180,180, linewidth=0.5, color='xkcd:electric pink')
+        ax[0, plotInd].set_title(DoFs[plotInd])
+    fig.text(0.5, 0.04, 'Frequency [Hz]', ha='center', fontsize=32) # Common x label
     fig.subplots_adjust(hspace=0.05, wspace=0.05)
     fig.suptitle('Complex TF from all coils to UL for {}'.format(par['optic']))
     fig.savefig(figDir+par['optic']+'_cplxTF'+'.pdf', bbox_inches='tight')

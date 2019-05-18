@@ -53,8 +53,8 @@ fig3, ax3 = plt.subplots(1,1,figsize=(16,9))
 fitDict = fitSpectra(paramFile, initFile, fftParams, fig3, ax3, nullStream=True)
 
 # Compute the complex TF from all coils to UL
-fig4, ax4 = plt.subplots(3,1,figsize=(16,24), sharex=True)
-ff_TF, TF = cplxTF(paramFile, fftParams, fig4, ax4)
+fig4, ax4 = plt.subplots(3,4,figsize=(24,24), sharex='col', sharey='row')
+ff_TF, TF = cplxTF(paramFile, fftParams, fig4, ax4, fitDict)
 
 # Compute the sensing matrix
 fig5, ax5 = plt.subplots(2,1,sharex=True,figsize=(16,16))
