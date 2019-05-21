@@ -353,7 +353,7 @@ def fitSpectra(paramFile, guessFile, fftParams, fig, ax, mtrx=np.array([[1,1,1,1
     ax.xaxis.set_major_formatter(FormatStrFormatter("%.1f"))
     ax.xaxis.set_minor_formatter(FormatStrFormatter("%.1f"))
     ax.set_xlim([0.5,1.2])
-    ax.set_ylim([1e-2, 200])
+    ax.set_ylim([1e-2, 300])
     fig.suptitle('Peak fitting using the naive input matrix for {}'.format(par['optic']))
     # Add the table to the plot
     plotTbl = ax.table(cellText=tbl, fontsize=14, colLabels=['DoF', '$f_0$','Q'], loc='upper left', colWidths=[0.05,0.1,0.05], rowLoc='center', colLoc='center')
@@ -428,7 +428,7 @@ def cplxTF(paramFile, fftParams, fig, ax, fitDict, mtrx=np.array([[1,1,1,1,0],[1
             #ax[2, plotInd].semilogy(ff, np.sqrt(Pxx), '.', label=DoFs[ii], rasterized=True)
             ax[2, plotInd].semilogy(ff, np.sqrt(Pxx), label=DoFs[ii], rasterized=True)
     ax[1,0].set_ylim([-185,185])
-    ax[2,0].set_ylim([1e-1,200])
+    ax[2,0].set_ylim([1e-1,300])
     ax[1,0].set_yticks(np.linspace(-180,180,9))
     ax[1,0].set_ylabel('Phase [deg]')
     ax[0,0].set_ylabel('Magnitude [abs]')
@@ -556,7 +556,7 @@ def calcSensMat(paramFile, fftParams, fitDict, TF, ff_TF, fig, ax, naiveMat=np.a
     ax[0].legend(loc='best')
     for aa in ax:
         aa.grid(True, which='both')
-        aa.set_ylim([1e-2,200])
+        aa.set_ylim([1e-2,300])
     props = dict(boxstyle='round',facecolor='wheat',alpha=0.5)
     ax[1].text(0.15,0.85, 'Condition number = {}'.format(round(cond,1)), transform=ax[1].transAxes, bbox=props, fontsize=22,fontweight='bold')
     fig.subplots_adjust(hspace=0.05, wspace=0.05)
