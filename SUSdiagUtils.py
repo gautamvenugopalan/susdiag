@@ -16,7 +16,8 @@ from matplotlib.ticker import FormatStrFormatter
 from matplotlib.font_manager import FontProperties
 import tabulate
 import sympy
-import logging 
+import logging
+import socket 
 
 logging.basicConfig(
     level=os.getenv('LOG_LEVEL', 'INFO'),
@@ -79,8 +80,14 @@ def dlData(paramFile):
         return
     else:
         # Define the NDS connection parameters
-        ndsServer = par['ndsServer']
-        ndsPort = par['ndsPort']
+        if 'rossa' in socket.gethostname():
+            ndsServer = 'fb'
+            ndsPort = 8088
+        else:
+            ndsServer = par['ndsServer']
+            ndsPort = par['ndsPort']
+        ndsParams = nds2.parameters()
+        ndsParams.set('GAP_HANDLER','STATIC_HANDLER_ZERO')
         # Define the downsampling params
         dsFactor = par['dsFactor']
         # Define the channels 
@@ -104,7 +111,8 @@ def dlData(paramFile):
             tEnd = tStart + par['tDur'] 
             #print('Fetching {} from {} to {} ...'.format(ii,tStart, tEnd))
             logging.debug('Fetching {} from {} to {} ...'.format(ii,tStart, tEnd))
-            dat = conn.fetch(int(tStart), int(tEnd), [ii])
+            #dat = conn.fetch(int(tStart), int(tEnd), [ii])
+            dat = nds2.fetch([ii], int(tStart), int(tEnd), params=ndsParams)
             # Do the detrending and downsampling
             yy = sig.detrend(dat[0].data[:])
             yy = sig.decimate(yy, dsFactor, ftype='fir')
