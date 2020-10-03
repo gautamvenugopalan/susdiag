@@ -57,6 +57,11 @@ plt.rcParams['figure.facecolor'] = 'white'
 plt.rcParams['figure.subplot.left'] = 0.07
 plt.rcParams['figure.subplot.right'] = 0.95
 plt.rcParams['figure.subplot.top'] = 0.92
+plt.rcParams['axes.facecolor'] = 'white'
+plt.rcParams['axes.edgecolor'] = 'black'
+plt.rcParams['savefig.facecolor'] = 'white'
+plt.rcParams['savefig.edgecolor'] = 'black'
+
 
 def importParams(paramFile):
     '''
