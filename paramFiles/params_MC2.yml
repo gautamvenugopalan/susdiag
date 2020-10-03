@@ -1,7 +1,22 @@
 # Parameter file for downloading some free-swinging suspension data
 optic: MC2
-tStart: 27 Feb 2019 2130 PST
-tDur: 15000
+tStart: 
+  - 1285568193
+  - 1285569304
+  - 1285570416
+  - 1285571527
+  - 1285572639
+  - 1285573750
+  - 1285574861
+  - 1285575973
+  - 1285577084
+  - 1285578196
+  - 1285579308
+  - 1285580420
+  - 1285581531
+  - 1285582643
+  - 1285583754 
+tDur: 1024
 dsFactor: 32
 tFFT: 1024 # seconds
 ndsServer: 131.215.115.200
