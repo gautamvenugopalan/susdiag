@@ -74,7 +74,7 @@ def dlData(paramFile):
     # Load the parameter file
     par = importParams(paramFile)
     # Check if the data file exists alread
-    if par['optic']+'_sensors_'+re.sub(' ', '_', str(par['tStart']))+'.hdf5' in os.listdir(dataDir):
+    if par['optic']+'_sensors_'+re.sub(' ', '_', str(par['tStart'][0]))+'.hdf5' in os.listdir(dataDir):
         #print('Data file exists already...')
         logging.debug('Data file exists already...')
         return
@@ -104,21 +104,23 @@ def dlData(paramFile):
             #print('Unable to open NDS connection')
             logging.debug('Unable to open NDS connection')
         # Make the HDF5 file to save the fft
-        fil = h5py.File(dataDir+optic+'_sensors_'+re.sub(' ', '_', str(par['tStart']))+'.hdf5','w')
+        fil = h5py.File(dataDir+optic+'_sensors_'+re.sub(' ', '_', str(par['tStart'][0]))+'.hdf5','w')
         # Get the data
         for ii, jj in tqdm.tqdm(zip(chans, ['LL','LR','UL', 'UR','SIDE']), total=len(chans)):
-            tStart = gpstime.tconvert(par['tStart'])
-            tEnd = tStart + par['tDur'] 
-            #print('Fetching {} from {} to {} ...'.format(ii,tStart, tEnd))
-            logging.debug('Fetching {} from {} to {} ...'.format(ii,tStart, tEnd))
-            #dat = conn.fetch(int(tStart), int(tEnd), [ii])
-            dat = nds2.fetch([ii], int(tStart), int(tEnd), params=ndsParams)
-            # Do the detrending and downsampling
-            yy = sig.detrend(dat[0].data[:])
-            yy = sig.decimate(yy, dsFactor, ftype='fir')
-            # Save this to file
-            tSer = fil.create_dataset('tSeries_'+jj, data=yy)
-            tSer.attrs['fs'] = dat[0].sample_rate / dsFactor
+            cc = fil.create_group(f'tSeries_{jj}')
+            for mm, tt in enumerate(par['tStart']):
+                tStart = tt
+                tEnd = tStart + par['tDur'] 
+                #print('Fetching {} from {} to {} ...'.format(ii,tStart, tEnd))
+                logging.debug(f'Fetching {ii} from {tStart} to {tEnd} ...')
+                #dat = conn.fetch(int(tStart), int(tEnd), [ii])
+                dat = nds2.fetch([ii], int(tStart), int(tEnd), params=ndsParams)
+                # Do the detrending and downsampling
+                yy = sig.detrend(dat[0].data[:])
+                yy = sig.decimate(yy, dsFactor, ftype='fir')
+                # Save this to file
+                tSer = cc.create_dataset(f'{mm}', data=yy)
+                tSer.attrs['fs'] = dat[0].sample_rate / dsFactor
         fil.close()
     
 def highResSpectra(paramFile):
@@ -129,26 +131,33 @@ def highResSpectra(paramFile):
     par = importParams(paramFile)
     optic = par['optic']
     # Open the HDF5 file with the time series data
-    fil = h5py.File(dataDir+optic+'_sensors_'+re.sub(' ', '_', str(par['tStart']))+'.hdf5','a')
+    fil = h5py.File(dataDir+optic+'_sensors_'+re.sub(' ', '_', str(par['tStart'][0]))+'.hdf5','a')
     # FFT params
     tFFT = par['tFFT']
     # Get the data
     for ii in tqdm.tqdm(fil.keys()):
         if 'tSeries_' in ii:
-            # Setup the FFT parameters
-            fs = fil[ii].attrs['fs']
-            nFFT = int(tFFT * fs)
-            win = sig.get_window(('tukey',0.25),nFFT)
-            # Do the FFT
-            #print('Welch-ing {} ...'.format(re.sub('tSeries_','',ii)))
-            logging.debug('Welch-ing {} ...'.format(re.sub('tSeries_','',ii)))
-            ff, Pxx = sig.welch(fil[ii][:], fs=fs, window=win, scaling='density')
+            for kk in tqdm.tqdm(fil[ii].keys()):
+                # Setup the FFT parameters
+                fs = fil[ii][kk].attrs['fs']
+                nFFT = int(tFFT * fs)
+                win = sig.get_window(('tukey',0.25),nFFT)
+                # Do the FFT
+                #print('Welch-ing {} ...'.format(re.sub('tSeries_','',ii)))
+                logging.debug('Welch-ing {} ...'.format(re.sub('tSeries_','',ii)))
+                ff, Pxx = sig.welch(fil[ii][kk][:], fs=fs, window=win, scaling='density')
+                if kk=='0':
+                    pows = Pxx
+                else:
+                    pows = np.vstack((pows,Pxx))
+            # Compute the median
+            Pxx_median = np.median(pows, axis=0)
             # Save this to file
             if 'ff_'+re.sub('tSeries_','',ii) in fil.keys():
                 del fil['ff_'+re.sub('tSeries_','',ii)]
                 del fil['P_'+re.sub('tSeries_','',ii)]
             fil['ff_'+re.sub('tSeries_','',ii)] = ff
-            fil['P_'+re.sub('tSeries_','',ii)] = np.sqrt(Pxx)
+            fil['P_'+re.sub('tSeries_','',ii)] = np.sqrt(Pxx) * np.sqrt(np.log(2)) # Median averaging of the periodograms
     fil.close()
     return
 
@@ -158,7 +167,7 @@ def plotSpectra(paramFile, fig, ax, zoom=True, brMode=False, saveFig=True):
     '''
     # Load the parameter file
     par = importParams(paramFile)
-    fil = h5py.File(dataDir+par['optic']+'_sensors_'+re.sub(' ', '_', str(par['tStart']))+'.hdf5','r')
+    fil = h5py.File(dataDir+par['optic']+'_sensors_'+re.sub(' ', '_', str(par['tStart'][0]))+'.hdf5','r')
     for ii in ['UL', 'UR', 'LL', 'LR', 'SIDE']:
         ax.semilogy(fil['ff_'+ii], fil['P_'+ii], '.', label=ii, rasterized=True)
     ax.grid(True, which='both')
@@ -168,7 +177,7 @@ def plotSpectra(paramFile, fig, ax, zoom=True, brMode=False, saveFig=True):
     ax.set_ylabel('Sensor voltage ASD [cts/$\sqrt{\mathrm{Hz}}$]')
     ax.xaxis.set_major_formatter(FormatStrFormatter("%.1f"))
     ax.xaxis.set_minor_formatter(FormatStrFormatter("%.1f"))
-    fig.suptitle(par['optic']+' Sensor voltage spectra from {} for {} seconds'.format(par['tStart'], par['tDur']))
+    fig.suptitle(par['optic']+' Sensor voltage spectra from {} for {} seconds'.format(par['tStart'][0], par['tDur']))
     if zoom:
         if brMode:
             ax.set_xlim([15,25])
@@ -180,25 +189,25 @@ def plotSpectra(paramFile, fig, ax, zoom=True, brMode=False, saveFig=True):
         fig.savefig(figDir+par['optic']+'_sensorSpectra.pdf', bbox_inches='tight')
     return
 
-def plotTimeSeries(paramFile, fig, ax):
+def plotTimeSeries(paramFile, fig, ax, saveFig=True):
     '''
     Tile plot the time series (downsampled)
     used to make the spectra
     '''
     # Load the parameter file
     par = importParams(paramFile)
-    fil = h5py.File(dataDir+par['optic']+'_sensors_'+re.sub(' ', '_', str(par['tStart']))+'.hdf5','r')
+    fil = h5py.File(dataDir+par['optic']+'_sensors_'+re.sub(' ', '_', str(par['tStart'][0]))+'.hdf5','r')
     #Some fancy boxed text
     props = dict(boxstyle='round',facecolor='wheat',alpha=0.5)
     for ii, jj in enumerate([ v for v in fil.keys() if 'tSer' in v]):
         if 'tSeries_' in jj and 'SIDE' not in jj:
-            yy = fil[jj][:]
-            tt = np.linspace(0, (len(yy)-1)/fil[jj].attrs['fs'], len(yy))/1000
+            yy = fil[jj]['0'][:]
+            tt = np.linspace(0, (len(yy)-1)/fil[jj]['0'].attrs['fs'], len(yy))/1000
             ax[int(np.floor(ii/3)), int(ii%3)].plot(tt, yy, rasterized=True, alpha=0.5, label=re.sub('tSeries_','',jj))
             ax[int(np.floor(ii/3)), int(ii%3)].text(0.75,0.05,re.sub('tSeries_','',jj), transform=ax[int(np.floor(ii/3)), int(ii%3)].transAxes, bbox=props, fontsize=22,fontweight='bold')
         ax[0,2].axis('off')
         ax[0,2].text(0.5,0.5,'Detrended, downsampled, \n free-swinging data \n for {}'.format(par['optic']))
-    ax[1,2].plot(tt, fil['tSeries_SIDE'][:], rasterized=True, alpha=0.5, label=re.sub('tSeries_','',jj))
+    ax[1,2].plot(tt, fil['tSeries_SIDE']['0'][:], rasterized=True, alpha=0.5, label=re.sub('tSeries_','',jj))
     ax[1,2].text(0.75,0.05,'SIDE', transform=ax[1,2].transAxes, bbox=props, fontsize=22,fontweight='bold')
     fil.close()
     ax[1,0].set_xlabel('Time [ksec]')
@@ -210,11 +219,12 @@ def plotTimeSeries(paramFile, fig, ax):
     ax[1,0].yaxis.set_major_formatter(FormatStrFormatter('%2d'))
     fig.subplots_adjust(hspace=0.05, wspace=0.05)
     fig.suptitle('Time series data for free-swinging {}'.format(par['optic']))
-    fig.savefig(figDir+par['optic']+'_sensors_timeDomain'+'.pdf', bbox_inches='tight')
+    if saveFig:
+        fig.savefig(figDir+par['optic']+'_sensors_timeDomain'+'.pdf', bbox_inches='tight')
 
 
 # Some helper functions
-def OSEM2Eul(paramFile, mtrx, nullStream=False):
+def OSEM2Eul(paramFile, mtrx, fftParams, nullStream=False):
     '''
     Compute the DoF streams from the OSEM basis.
     Option to also get the nullstream (pringle/butterfly mode)
@@ -225,9 +235,13 @@ def OSEM2Eul(paramFile, mtrx, nullStream=False):
         Path to parameter file
     nullStream: bool
         Whether to calculate the nullstream or not
+    fftParams: dict
+        A dictionary of fft parameters
         
     Returns:
     ---------
+    ff: array_like
+        Frequency vector for ASD
     Eul: array_like
         A matrix of the spectra in the DoF basis, whose ROWS are the DoFs
     fs: float
@@ -235,16 +249,32 @@ def OSEM2Eul(paramFile, mtrx, nullStream=False):
     '''
     # Load the parameter file
     par = importParams(paramFile)
-    fil = h5py.File(dataDir+par['optic']+'_sensors_'+re.sub(' ', '_', str(par['tStart']))+'.hdf5','r')
-    #OSEMs = np.array([fil['P_UL'][:], fil['P_UR'][:], fil['P_LL'][:], fil['P_LR'][:], fil['P_SIDE'][:]])
-    OSEMs = np.array([fil['tSeries_UL'][:], fil['tSeries_UR'][:], fil['tSeries_LL'][:], fil['tSeries_LR'][:], fil['tSeries_SIDE'][:]])
-    #ff = fil['ff_UL'][:]
-    fs = fil['tSeries_UL'].attrs['fs']
+    fil = h5py.File(dataDir+par['optic']+'_sensors_'+re.sub(' ', '_', str(par['tStart'][0]))+'.hdf5','r')
     if nullStream:
         mtrx = np.vstack((mtrx,np.array([1,-1,-1,1,0])))
-    Eul = np.dot(mtrx, OSEMs)
+    #OSEMs = np.array([fil['P_UL'][:], fil['P_UR'][:], fil['P_LL'][:], fil['P_LR'][:], fil['P_SIDE'][:]])
+    for kk in fil['tSeries_LL'].keys():
+        OSEMs = np.array([fil['tSeries_UL'][kk][:], fil['tSeries_UR'][kk][:], fil['tSeries_LL'][kk][:], fil['tSeries_LR'][kk][:], fil['tSeries_SIDE'][kk][:]])
+        #ff = fil['ff_UL'][:]
+        fs = fil['tSeries_UL'][kk].attrs['fs']
+        
+        Eul_T = np.dot(mtrx, OSEMs)
+        nFFT = int(fftParams['tFFT'] * fs)
+        for ii in range(len(Eul_T)):
+            ff, Pxx = sig.welch(Eul_T[ii,:], fs=fs, nperseg=nFFT, window=sig.get_window(fftParams['window'],nFFT))
+            if ii==0:
+                pspec = Pxx
+            else:
+                pspec = np.vstack((pspec, Pxx))
+        pspec = np.broadcast_to(pspec, (1, pspec.shape[0], pspec.shape[1]))
+        if kk=='0':
+            pows = pspec
+        else:
+            pows = np.vstack((pows, pspec))
+    Pxx_med = np.median(pows, axis=0)
     fil.close()
-    return(Eul, fs)
+    Eul = np.sqrt(Pxx_med) * np.sqrt(np.log(2))
+    return(ff, Eul, fs)
 
 def lor(freq, cent, wid, amp):
     '''
@@ -295,15 +325,7 @@ def fitSpectra(paramFile, guessFile, fftParams, fig, ax, mtrx=np.array([[1,1,1,1
     for ii in DoFs:
         fitDict[ii] = {}
     # Start by making the DoFs
-    Eul_T, fs = OSEM2Eul(paramFile, mtrx, nullStream=nullStream)
-    # Do the FFT
-    nFFT = int(fftParams['tFFT'] * fs)
-    for ii in range(len(Eul_T)):
-        ff, Pxx = sig.welch(Eul_T[ii,:], fs=fs, nperseg=nFFT, window=sig.get_window(fftParams['window'],nFFT))
-        if ii==0:
-            Eul = np.sqrt(Pxx)
-        else:
-            Eul = np.vstack((Eul, np.sqrt(Pxx))) 
+    ff, Eul, fs = OSEM2Eul(paramFile, mtrx, fftParams=fftParams, nullStream=nullStream)
     # Load the parameter file for the fitting
     par = importParams(paramFile)
     # Get the initial guesses
@@ -400,23 +422,40 @@ def cplxTF(paramFile, fftParams, fig, ax, fitDict, mtrx=np.array([[1,1,1,1,0],[1
     # Load the data file
     par = importParams(paramFile)
     try:
-        fil = h5py.File(dataDir+par['optic']+'_sensors_'+re.sub(' ', '_', str(par['tStart']))+'.hdf5','r')
-        OSEMs = np.array([fil['tSeries_UL'][:], fil['tSeries_UR'][:], fil['tSeries_LL'][:], fil['tSeries_LR'][:], fil['tSeries_SIDE'][:]])
-        fs = fil['tSeries_UL'].attrs['fs'] # Downsampled data
+        fname = dataDir+par['optic']+'_sensors_'+re.sub(' ', '_', str(par['tStart'][0]))+'.hdf5'
+        print(f'Loading {fname}')
+        fil = h5py.File(fname,'r')
+        print('Loaded data file...')
+        for kk in fil['tSeries_LL'].keys():
+            if kk=='0':
+                tmp = np.array([fil['tSeries_UL'][kk][:], fil['tSeries_UR'][kk][:], fil['tSeries_LL'][kk][:], fil['tSeries_LR'][kk][:], fil['tSeries_SIDE'][kk][:]])
+                OSEMs = np.broadcast_to(tmp, (1, tmp.shape[0], tmp.shape[1]))
+            else:
+                OSEMs = np.vstack((OSEMs, np.broadcast_to(tmp, (1, tmp.shape[0], tmp.shape[1]))))
+        fs = fil['tSeries_UL']['0'].attrs['fs'] # Downsampled data
         fil.close()
-    except:
-        #print('Data file doesnt exist!')
+    except Exception as e:
+        print('Data file doesnt exist!')
+        logging.debug(e)
         logging.debug('Data file doesnt exist!')
         return
+    
     # Compute the CSDs and PSDs from everything to UL
     nFFT = int(fftParams['tFFT'] * fs)
-    for ii in range(len(OSEMs)):
-        ff, Pyx = sig.csd(OSEMs[ii,:],OSEMs[0,:], fs=fs, nperseg=nFFT, window=sig.get_window(fftParams['window'],nFFT))
-        ff, Pxx = sig.welch(OSEMs[0,:], fs=fs, nperseg=nFFT, window=sig.get_window(fftParams['window'],nFFT))
-        if ii==0:
-            TF = Pyx / Pxx
+    for kk in range(OSEMs.shape[0]):
+        for ii in range(OSEMs.shape[1]):
+            ff, Pyx = sig.csd(OSEMs[kk, ii,:],OSEMs[kk,0,:], fs=fs, nperseg=nFFT, window=sig.get_window(fftParams['window'],nFFT))
+            ff, Pxx = sig.welch(OSEMs[kk, 0,:], fs=fs, nperseg=nFFT, window=sig.get_window(fftParams['window'],nFFT))
+            if ii==0:
+                TF = Pyx / Pxx
+            else:
+                TF = np.vstack((TF, Pyx/Pxx))
+        TF_stacked = np.broadcast_to(TF, (1, TF.shape[0], TF.shape[1]))
+        if kk==0:
+            TFF = TF_stacked
         else:
-            TF = np.vstack((TF, Pyx/Pxx))
+            TFF = np.vstack((TFF, TF_stacked))
+    TF = np.mean(TFF, axis=0)
     # Make the plot
     labs = ['UL-UL','UR-UL','LL-UL','LR-UL','SD-UL']
     # DoFs
@@ -427,14 +466,12 @@ def cplxTF(paramFile, fftParams, fig, ax, fitDict, mtrx=np.array([[1,1,1,1,0],[1
             ax[1, plotInd].plot(ff, np.angle(TF[ii,:], deg=True), alpha=0.7, linestyle='--', rasterized=True)
     # Add the Peaks
     # Start by making the DoFs
-    Eul_T, fs = OSEM2Eul(paramFile, mtrx, nullStream=nullStream)
+    ff, Eul, fs = OSEM2Eul(paramFile, mtrx, fftParams=fftParams, nullStream=nullStream)
     # Do the FFT
     nFFT = int(fftParams['tFFT'] * fs)
-    for ii in range(len(Eul_T)):
+    for ii in range(len(Eul)-1):
         for plotInd in range(len(DoFs)):
-            ff, Pxx = sig.welch(Eul_T[ii,:], fs=fs, nperseg=nFFT, window=sig.get_window(fftParams['window'],nFFT))
-            #ax[2, plotInd].semilogy(ff, np.sqrt(Pxx), '.', label=DoFs[ii], rasterized=True)
-            ax[2, plotInd].semilogy(ff, np.sqrt(Pxx), label=DoFs[ii], rasterized=True)
+            ax[2, plotInd].semilogy(ff, Eul[ii,:], label=DoFs[ii], rasterized=True)
     ax[1,0].set_ylim([-185,185])
     ax[2,0].set_ylim([1e-1,300])
     ax[1,0].set_yticks(np.linspace(-180,180,9))
@@ -540,20 +577,15 @@ def calcSensMat(paramFile, fftParams, fitDict, TF, ff_TF, fig, ax, naiveMat=np.a
     logging.debug('Plotting...')
     # Start by making the DoFs
     DoFs.append('NULL')
-    Eul_T, fs = OSEM2Eul(paramFile, naiveMat, nullStream=True)
-    # Do the FFT
-    nFFT = int(fftParams['tFFT'] * fs)
-    for ii in range(len(Eul_T)):
-        ff, Pxx = sig.welch(Eul_T[ii,:], fs=fs, nperseg=nFFT, window=sig.get_window(fftParams['window'],nFFT))
-        ax[0].semilogy(ff, np.sqrt(Pxx), label=DoFs[ii])
+    ff, Eul, fs = OSEM2Eul(paramFile, naiveMat, fftParams=fftParams,  nullStream=True)
+    for ii in range(len(Eul)):
+        ax[0].semilogy(ff, Eul[ii,:], label=DoFs[ii])
     # Repeat for the measured/calculated input matrix
     #Eul_T, fs = OSEM2Eul(paramFile, invMatNorm, nullStream=False)
-    Eul_T, fs = OSEM2Eul(paramFile, invMat.T, nullStream=False)
+    ff, Eul, fs = OSEM2Eul(paramFile, invMat.T, fftParams=fftParams,  nullStream=False)
     # Do the FFT
-    nFFT = int(fftParams['tFFT'] * fs)
-    for ii in range(len(Eul_T)):
-        ff, Pxx = sig.welch(Eul_T[ii,:], fs=fs, nperseg=nFFT, window=sig.get_window(fftParams['window'],nFFT))
-        ax[1].semilogy(ff, np.sqrt(Pxx), label=DoFs[ii])
+    for ii in range(len(Eul)):
+        ax[1].semilogy(ff, Eul[ii,:], label=DoFs[ii])
     # Formatting
     ax[1].set_xlabel('Frequency [Hz]')
     #ax[1].set_ylabel('Post diag ASD [$\mu \mathrm{m}/ \sqrt{\mathrm{Hz}}$ ]')
